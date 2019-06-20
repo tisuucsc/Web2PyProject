@@ -1,0 +1,152 @@
+{{extend 'layout.html'}}
+
+{{block head}}
+<script src="{{=URL('static', 'js/vue.js')}}"></script>
+<script>
+    var my_url = "{{=URL('api', 'my_method')}}";
+    var search_url = "{{=URL('api', 'search', user_signature=True, hash_vars=False)}}";
+    var hide_url = "{{=URL('api', 'hide')}}";
+    var show_url = "{{=URL('api', 'show')}}";
+    var get_reviews = "{{=URL('api', 'get_reviews')}}";
+    var get_own_review = "{{=URL('api', 'get_own_review')}}";
+    var printthis = "{{=URL('api', 'printthis')}}";
+    var is_logged_in = {{='false' if auth.user is None else 'true'}};
+    var initializereview_url = "{{=URL('api', 'initializereview')}}";
+    var set_stars_url = "{{=URL('api', 'set_stars')}}";
+    var add_review_url = "{{=URL('api', 'add_review', user_signature=True)}}";
+    var buy_product_url = "{{=URL('api', 'inc_cart', user_signature=True)}}";
+    var get_cart_url = "{{=URL('api', 'get_cart', user_signature=True)}}";
+    var clear_cart_url = "{{=URL('api', 'clear_cart', user_signature=True)}}";
+</script>
+{{end}}
+
+<div class="main_content">
+    <div id="vue-div">
+    <div v-if="page=='shop'">
+        <div id="switch-button" v-if="is_logged_in">
+            <button class="btn" v-on:click="goto('cart')">View Cart</button>
+        </div>
+    </div>
+    <div v-if="page=='cart'">
+        <div id="switch-button">
+            <button class="btn" v-on:click="goto('shop')">Continue Shopping</button>
+        </div>
+    </div>
+    <div v-if="page=='shop'">
+        <div id="vue-div" class="display:none">
+        	Search: <input type="text" v-model="search_string" v-on:input="do_search" />	
+        	<div v-if="product_list.length === 0">No results.</div>
+            <div id="product_list">
+            	<div v-for="p in product_list">
+                    <div class="container padded center">
+                        <div class="third">
+                    		<div class="product_name_and_price" font-weight="bold"> 
+                    			${p.product_name} ${p.sales_price}
+                    		</div>
+                    		<div class="product_description">
+                    			${p.product_description}
+                    		</div>
+                            <div v-if="p._details">
+                                <div class="review_section" >
+                                    <span v-if="is_logged_in" class="review_form">
+                                        <span v-for="r in selfreview">
+                                            Your Review: 
+                                            <span v-on:mouseout="stars_out(p)">
+                                                <span v-on:mouseover="stars_over(idx)"
+                                                      v-on:click="set_stars(p, idx)"
+                                                      v-for="idx in star_indices">
+                                                    <i v-if="idx <= r._num_stars_display" class="fa fa-star"></i>
+                                                    <i v-if="idx > r._num_stars_display" class="fa fa-star-o"></i>
+                                                </span>
+                                            </span>
+                                            <input class = "reviewfield" v-model="r.review" />
+                                            <button class = "review-button" v-on:click="add_review(p, r)">Submit 
+                                                <div id="checkmark" v-if="check">
+                                                    <i class="green fa fa-check" ></i>
+                                                </div>
+                                            </button>
+                                        </span>
+                                    </span>
+                                    <div v-for="r in review_list">
+                                        <div class="review_div">
+                                                <div class="stars">
+                                                    <span v-for="idx in star_indices">
+                                                        <i v-if="idx <= r.stars" class="fa fa-star"></i>
+                                                        <i v-if="idx > r.stars" class="fa fa-star-o"></i>
+                                                    </span>
+                                                </div>
+                                                <div class="review">
+                                                    ${r.review}
+                                                </div>
+                                                <div class="name">
+                                                    ${r.name}
+                                                </div>
+                                        </div>x
+                                    </div>
+                                    <span v-if="is_logged_in" class="buy_buttons">
+                                        <button class="btn" v-on:click="inc_desired_quantity(p.id, 1)"><i class="fa fa-plus"></i></button>
+                                        <span class="desired_quantity">${p.desired_quantity}</span>
+                                        <button class="btn" v-on:click="inc_desired_quantity(p.id, -1)"><i class="fa fa-minus"></i></button>
+                                        <button class="btn red" v-on:click="buy_product(p.id)"><i class="fa fa-lg fa-shopping-cart"></i> Buy</button>
+                                    </span>
+                                    <button class="close_button" v-on:click="hide()">
+                                        Close
+                                    </button> 
+                                </div>
+                            </div>
+                            <div v-else>
+                                <div class="review_section">
+                                    <button class="open_button" v-on:click="show(p.id)">
+                                        <span v-for="idx in star_indices">
+                                            <i v-if="idx <= p.average" class="fa fa-star"></i>
+                                            <i v-if="idx > p.average" class="fa fa-star-o"></i>
+                                        </span>
+                                        Reviews
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+            	   </div>
+                </div>
+           	</div>
+        </div>
+    </div>
+    <div v-if="page=='cart'">
+        <div id="cart">
+            <div v-if="cart.length === 0" class="container">
+                <div class="empty-cart-msg">
+                    Your cart is empty.
+                </div>
+            </div>
+            <div v-for="o in cart">
+                <div class="container padded center">
+                    <div class="third">
+                        ${o.quantity}x
+                        ${o.product} 
+                        $${o.cost}
+                    </div>
+                </div>
+            </div>
+            <div class="container padded center">
+                Total: $${total}
+            </div>
+        </div>
+        <div id="purchase-button">
+            <a class="btn" href="#popup1" v-on:click="clearcart()">make purchase</a>
+        </div>
+        <div class="modal" id="popup1">
+            <div class="twothirds rounded white padded">
+                <a class="close" href="#" v-on:click="processcart()">×</a>
+                Thank you for your purchase of $${total}
+                <div class="right">
+                    <a class="close btn" href="#" v-on:click="processcart()">close</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+
+
+<script src="{{=URL('static', 'js/default_index.js')}}"></script>
